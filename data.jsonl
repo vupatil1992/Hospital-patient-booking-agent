@@ -1,0 +1,5 @@
+{"input": {"name": "Alice", "age": 28, "reason": "Flu", "requested_slot": "10:00"}, "output": {"doctor_slot": "10:00", "confirmation": "Booking confirmed!"}}
+{"input": {"name": "Bob", "age": 40, "reason": "Checkup", "requested_slot": "10:00"}, "output": {"doctor_slot": "09:00", "confirmation": "Conflict! Please choose another time."}}
+{"input": {"name": "Charlie", "age": 50, "reason": "Checkup", "requested_slot": "11:00"}, "output": {"doctor_slot": "09:00", "confirmation": "Conflict! Please choose another time."}}
+{"input": {"name": "Dana", "age": 35, "reason": "Flu", "requested_slot": "11:00"}, "output": {"doctor_slot": "11:00", "confirmation": "Booking confirmed!"}}
+{"input": {"name": "Eve", "age": 60, "reason": "Surgery", "requested_slot": "10:00"}, "output": {"doctor_slot": "", "confirmation": "No available slots. Please call support."}}
