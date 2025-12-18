@@ -2,44 +2,52 @@
 
 ## Quick Reference for Interview
 
-**What Built**: LangGraph-based agent for hospital patient appointment booking.
+**What Built**: Tool-calling LangGraph agent for hospital appointment booking with conflict resolution.
 
 **Tech Stack**: LangGraph, LangChain (Ollama llama3.2:1b), LangSmith.
 
 ## Architecture Overview
 
 ```
-User Input (Patient Data)
+User Input (Natural Language)
     |
-BookingState TypedDict
+MessagesState (conversation history)
     |
 LangGraph Workflow:
-START --> collect_patient_info --> select_doctor--> confirm_booking --> END
-    |              |           |
-  LLM Summary  Slot Suggestion  Conflict Check  Confirmation
-    |              |            |
-Output (Booking Result)
+START --> assistant --> tools --> assistant --> END
+    |         |           |         |
+  LLM with Tools  Tool Execution  Tool Results  Response
+    |         |           |         |
+  Decision Making  Database Queries  Booking Updates  Final Output
 ```
+
+## LangStudio Chat Simulation
+
+The agent supports conversational chat through LangSmith Studio. Users can interact with natural language inputs like:
+
+- "Hi, my name is John Doe. I want to book a flu appointment at 10:00."
+
+The agent extracts information from conversation history, uses tools to check availability and handle conflicts, then books appointments. All interactions are traceable in LangSmith for monitoring and evaluation.
 
 ## Data Flow
 
-1. **Input**: Patient name, age, reason, requested_slot
-2. **collect_patient_info**: LLM generates patient summary
-3. **select_doctor**: LLM suggests slot, checks availability vs requested
-4. **confirm_booking**: Validates assignment, sets confirmation message
-5. **Output**: doctor_slot and confirmation
+1. **Input**: Natural language message from user
+2. **Extraction**: Regex-based parsing of name, reason, time from message history
+3. **Tool Selection**: LLM decides which tools to call (availability check, conflict check, booking)
+4. **Database Query**: Tools access HOSPITAL_DB and BOOKED_REGISTRY
+5. **Response**: Agent provides booking confirmation or requests missing info
 
 ## Key Components
 
-- **State**: BookingState dict with 7 fields
-- **Nodes**: 3 traceable functions using @traceable decorator
-- **LLM**: ChatOllama for summarization and slot suggestion
-- **Slots**: Hardcoded AVAILABLE_SLOTS dict by reason
-- **Evaluation**: LangSmith with 2 evaluators (LLM-based correctness, rule-based conflict check)
+- **State**: MessagesState for conversation management
+- **Assistant Node**: LLM with tool-binding for decision making
+- **Tools**: show_available_slots, check_availability_and_alternatives, finalize_booking, list_all_booked_appointments
+- **Database**: HOSPITAL_DB (departments, doctors, slots) and BOOKED_REGISTRY (confirmed bookings)
+- **Evaluation**: LangSmith with custom evaluators for correctness and conflict handling
 
 ## Evaluation Approach
 
-- **Dataset**: 5 synthetic examples in LangSmith
-- **SDK Run**: client.evaluate() with evaluators
-- **UI**: Manual review in LangSmith dashboard
-- **Metrics**: Correctness score (0-1), conflict handling (0/1)
+- **Dataset**: Synthetic examples with various booking scenarios in LangSmith
+- **SDK Run**: client.evaluate() with target function
+- **UI**: LangSmith Studio for chat simulation and graph visualization
+- **Metrics**: Correctness score (0-1), conflict resolution score (0/1)

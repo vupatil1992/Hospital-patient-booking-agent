@@ -1,7 +1,7 @@
 from langsmith import Client
 from run_agent import target
 from dotenv import load_dotenv
-from booking_evaluator import correctness,slot_conflict_evaluator
+from booking_evaluator import correctness_evaluator,slot_logic_evaluator
 import os
 
 # Load variables from .env
@@ -14,9 +14,9 @@ client = Client(api_key=API_KEY)
 
 client.evaluate(
     target,
-    "60d11d0f-9b9f-4df1-8edc-2c230fc3a5fb",
+    "8ee08e66-184b-4206-b730-2f315e6c7e8f",
     evaluators=[
-            correctness,
-            slot_conflict_evaluator
+            correctness_evaluator,
+            slot_logic_evaluator
             ]
 )

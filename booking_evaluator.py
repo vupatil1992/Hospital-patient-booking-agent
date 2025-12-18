@@ -1,82 +1,57 @@
-from langchain_ollama import ChatOllama
-from openevals.llm import create_llm_as_judge
-from openevals.prompts import CORRECTNESS_PROMPT
 import json
+import re
+from langchain_ollama import ChatOllama
 
 # Initialize evaluator LLM
-llm = ChatOllama(model="llama3.2:1b", temperature=0)
-
-
-# LLM-Based Scorer
-
-def correctness(run=None, example=None, inputs=None, outputs=None, reference_outputs=None, attachments=None):
-    """
-    LLM-based evaluator for LangSmith.
-    Must accept at least one of the supported arguments.
-    """
-    # Extract prediction and reference from LangSmith's structures
-    prediction = outputs
-    reference = reference_outputs or {}
+eval_llm = ChatOllama(model="llama3.2:1b", temperature=0)
+def correctness_evaluator(run, example):
+    agent_response = run.outputs["output"]["message"]
+    reference = example.outputs.get("reference", "")
+    user_input = example.inputs.get("message", "")
 
     prompt = f"""
-You are an strict JSON evaluator for a hospital booking system.
+    Analyze this hospital booking:
+    USER: {user_input}
+    AGENT: {agent_response}
+    GOAL: {reference}
 
-Return ONLY valid JSON.
-Do NOT include markdown, text, or explanation.
+    Step 1: Does the agent response fulfill the GOAL?
+    Step 2: Is the time normalization correct?
+    Step 3: Provide a score (1.0 or 0.0).
 
-Patient info:
-Name: {inputs.get('name', '')}
-Age: {inputs.get('age', '')}
-Reason: {inputs.get('reason', '')}
-
-Predicted output:
-Doctor slot: {prediction.get('doctor_slot', '')}
-Confirmation: {prediction.get('confirmation', '')}
-
-Reference output:
-Doctor slot: {reference.get('doctor_slot', '')}
-Confirmation: {reference.get('confirmation', '')}
-
-Rules:
-1. correctness: True if conflicts are correctly handled (e.g., if slot is taken, agent asks for another time).
-2. score: Float 0-1 considering exact match and conflict handling.
-
-Return ONLY JSON with keys: correctness,score
-"""
-
-    response = llm.invoke(prompt)
-    return {
-        "key": "correctness",
-        "score":  json.loads(response.content).get("score",0),
-    }
-
-
-# Slot Conflict Evaluator
-
-def slot_conflict_evaluator(run=None, reference_outputs=None, **kwargs):
+    Return ONLY JSON:
+    {{"score": 1.0, "reason": "Explain why"}}
     """
-    Evaluates if the agent correctly handled slot conflicts.
-    existing_slots: list of booked slots to check against
-    """
-    AVAILABLE_SLOTS = {
-    "Flu": ["10:00", "11:00"],
-    "Checkup": ["09:00", "10:00"]
-}
 
-    existing_slots = AVAILABLE_SLOTS
+    response = eval_llm.invoke(prompt)
+    try:
+        # Robust JSON extraction: finds the first '{' and last '}'
+        content = response.content
+        start_idx = content.find('{')
+        end_idx = content.rfind('}') + 1
+        clean_json = content[start_idx:end_idx]
+        
+        result = json.loads(clean_json)
+        return {"key": "correctness", "score": float(result.get("score", 0))}
+    except Exception as e:
+        print(f"Eval Error: {e} | Content: {response.content}")
+        return {"key": "correctness", "score": 0}
 
-    slot = run.outputs['output']['doctor_slot']
-    confirmation = run.outputs['output']['confirmation']
-    correct_handling = False
+def slot_logic_evaluator(run, example):
+    """A Dynamic Deterministic Check"""
+    agent_text = run.outputs["output"]["message"].lower()
+    reference_text = example.outputs.get("reference", "").lower()
+    
+    time_match = re.search(r"(\d{2}:\d{2})", reference_text)
+    
+    if time_match:
+        expected_time = time_match.group(1)
+        # If the expected 24h time is in the agent's response, give 1 point
+        if expected_time in agent_text:
+            return {"key": "slot_normalization_check", "score": 1}
+    
+    # Check for negative cases
+    if "reject" in reference_text and ("unavailable" in agent_text or "not available" in agent_text):
+        return {"key": "slot_normalization_check", "score": 1}
 
-    if slot in existing_slots:
-        # Expect a conflict message if slot is taken
-        correct_handling = "Conflict" in confirmation
-    else:
-        # Expect confirmation if slot is free
-        correct_handling = "Booking confirmed" in confirmation
-
-    return {
-        "key": "slot_conflict_handling",
-        "score": 1 if correct_handling else 0    
-    }
+    return {"key": "slot_normalization_check", "score": 0}

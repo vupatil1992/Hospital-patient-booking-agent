@@ -1,21 +1,25 @@
-# LangGraph Patient Booking Agent
+# LangGraph Hospital Booking Agent
 
-This project implements an AI agent for patient appointment booking at a hospital using LangGraph, LangChain, and LangSmith for evaluation. The agent processes patient information, selects appropriate doctor slots, and handles booking confirmations while managing potential slot conflicts.
+This project implements an AI agent for hospital appointment booking using LangGraph, LangChain, and LangSmith for evaluation. The agent uses natural language processing to understand patient requests, checks availability, handles conflicts, and books appointments with appropriate doctors and time slots.
 
+Task: https://www.notion.so/I4-Sr-TSE-LS-Prompt-20f808527b17804791f0ee05d74c9021
 ## Features
 
-- **Patient Information Collection**: Summarizes patient details using an LLM.
-- **Doctor Slot Selection**: Suggests and assigns available time slots based on the reason for visit.
-- **Conflict Handling**: Detects and resolves slot conflicts by suggesting alternatives.
-- **Evaluation System**: Uses LangSmith to evaluate agent performance with custom evaluators for correctness and slot conflict handling.
-- **Modular Architecture**: Built using LangGraph for state management and graph-based workflow.
+- **Natural Language Understanding**: Extracts patient name, reason, and preferred time from conversational inputs.
+- **Availability Checking**: Queries the hospital database for available doctors and time slots.
+- **Conflict Resolution**: Detects booking conflicts and suggests alternatives.
+- **Booking Finalization**: Securely books appointments and updates the registry.
+- **Tool-Based Architecture**: Uses LangGraph with tool-calling for robust decision making.
+- **LangStudio Chat Simulation**: Supports interactive chat through LangSmith Studio for testing and evaluation.
+- **Evaluation System**: Uses LangSmith to evaluate agent performance with custom evaluators for correctness and conflict handling.
+- **Modular Design**: Built using LangGraph for state management and workflow orchestration.
 
 ## Project Structure
 
-- `run_agent.py`: Main agent implementation using LangGraph. Defines the booking workflow with nodes for info collection, doctor selection, and confirmation.
+- `run_agent.py`: Main agent implementation using LangGraph with tool-calling. Includes assistant node, tools for availability checking and booking, and hospital database.
 - `dataset.py`: Script to create or retrieve a LangSmith dataset with sample patient booking examples.
 - `run_eval.py`: Runs evaluation of the agent against the dataset using LangSmith evaluators.
-- `booking_evaluator.py`: Contains custom evaluators for assessing agent correctness and slot conflict handling.
+- `booking_evaluator.py`: Contains custom evaluators for assessing agent correctness and conflict handling.
 - `requirements.txt`: Lists all Python dependencies required for the project.
 - `data.jsonl`: (Optional) Local dataset file in JSONL format for additional data.
 
@@ -50,18 +54,22 @@ This project implements an AI agent for patient appointment booking at a hospita
 The agent can be invoked programmatically. For example, to book an appointment:
 
 ```python
-from run_agent import graph
+from run_agent import agent
+from langchain_core.messages import HumanMessage
 
-initial_state = {
-    "name": "Alice",
-    "age": 28,
-    "reason": "Flu",
-    "requested_slot": "10:00"
-}
+initial_state = {"messages": [HumanMessage(content="Hi, my name is Alice. I want to book a flu appointment at 10:00.")]}
 
-result = graph.invoke(initial_state)
-print(result)
+result = agent.invoke(initial_state)
+print(result["messages"][-1].content)
 ```
+
+### LangStudio Chat Simulation
+
+The agent supports natural language chat inputs through LangSmith Studio. You can test conversational interactions by providing messages like:
+
+- "Hi, my name is John Doe. I am 32 years old and I want to book a Flu appointment at 10:00."
+
+The agent will parse the input, process the booking, and respond with confirmation. Use LangSmith Studio to simulate chat sessions and monitor the graph execution in real-time.
 
 ### Creating the Dataset
 
@@ -83,7 +91,8 @@ This will run the evaluators defined in `booking_evaluator.py` and report scores
 
 ## Configuration
 
-- **Available Slots**: Defined in `run_agent.py` under `AVAILABLE_SLOTS`. Currently supports "Flu" and "Checkup" reasons with predefined time slots.
+- **Hospital Database**: Defined in `run_agent.py` under `HOSPITAL_DB`. Contains doctors and available slots for each department (flu, fever, checkup).
+- **Booked Registry**: Tracks confirmed appointments in `BOOKED_REGISTRY` to prevent conflicts.
 - **LLM Model**: Uses `llama3.2:1b` via Ollama. Change in `run_agent.py` and `booking_evaluator.py` if needed.
 - **LangSmith**: Requires API key and dataset name in `.env` for evaluation.
 
@@ -99,6 +108,6 @@ Evaluations are run using LangSmith's evaluation framework, providing scores for
 ## Dependencies
 
 - langgraph: For graph-based state management.
-- langchain: Core LangChain framework.
-- langchain-openai, langchain-community, langchain-chroma: Additional LangChain components.
+- langchain:
+langchain-community, LangChain components.
 - langsmith: For evaluation and dataset management.
